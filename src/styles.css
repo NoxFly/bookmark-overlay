@@ -1,0 +1,1666 @@
+/* Overlay clients — feuille de style unique.
+   Contraintes : aucune ressource externe (police système, SVG inline), et des
+   animations limitées aux propriétés composées (transform / opacity) pour rester
+   sur le compositeur GPU et ne jamais faire ramer la machine.
+
+   L'apparence est pilotée par `data-theme` sur <html>, toujours résolu à `dark`
+   ou `light` par le script : le mode « système » est traduit côté JS, ce qui évite
+   toute bataille de spécificité entre media query et réglage explicite. */
+
+:root,
+:root[data-theme="dark"] {
+  --bg-0: #080b12;
+  --bg-1: #10141d;
+  --bg-2: #161b26;
+  --bg-3: #1d2331;
+  --line: #262d3d;
+  --line-soft: #1e2430;
+
+  --text: #e8eef7;
+  --text-dim: #9aa7ba;
+  --text-faint: #68768c;
+
+  --accent: #4cc2ff;
+  --accent-deep: #2f7fd6;
+  --accent-glow: rgba(76, 194, 255, 0.18);
+  --accent-wash: rgba(76, 194, 255, 0.1);
+  --accent-edge: rgba(76, 194, 255, 0.28);
+  --accent-ink: #04121d;
+
+  --danger: #ff6b6b;
+  --danger-wash: rgba(255, 107, 107, 0.08);
+  --danger-edge: rgba(255, 107, 107, 0.35);
+
+  --mark-bg: rgba(76, 194, 255, 0.22);
+  --mark-fg: #d6f0ff;
+
+  --scrim-glow: rgba(28, 44, 74, 0.55);
+  --scrim-near: rgba(4, 6, 11, 0.35);
+  --scrim-far: rgba(4, 6, 11, 0.72);
+
+  --panel-sheen: rgba(76, 194, 255, 0.07);
+  --panel-inset: rgba(255, 255, 255, 0.03);
+  --panel-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.5);
+  --menu-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --scroll-thumb: #1d2331;
+  --scroll-thumb-hover: #2c3547;
+  --dashed-wash: rgba(255, 255, 255, 0.015);
+}
+
+:root[data-theme="light"] {
+  --bg-0: #e9edf4;
+  --bg-1: #f6f8fc;
+  --bg-2: #ffffff;
+  --bg-3: #eef2f8;
+  --line: #d2dae7;
+  --line-soft: #e3e9f2;
+
+  --text: #16202f;
+  --text-dim: #4e5c70;
+  --text-faint: #7b8899;
+
+  --accent: #0a74c8;
+  --accent-deep: #0a5ea3;
+  --accent-glow: rgba(10, 116, 200, 0.16);
+  --accent-wash: rgba(10, 116, 200, 0.08);
+  --accent-edge: rgba(10, 116, 200, 0.3);
+  --accent-ink: #ffffff;
+
+  --danger: #c62f42;
+  --danger-wash: rgba(198, 47, 66, 0.07);
+  --danger-edge: rgba(198, 47, 66, 0.3);
+
+  --mark-bg: rgba(10, 116, 200, 0.18);
+  --mark-fg: #0a3c68;
+
+  --scrim-glow: rgba(120, 150, 195, 0.35);
+  --scrim-near: rgba(18, 28, 45, 0.18);
+  --scrim-far: rgba(18, 28, 45, 0.42);
+
+  --panel-sheen: rgba(10, 116, 200, 0.05);
+  --panel-inset: rgba(255, 255, 255, 0.9);
+  --panel-shadow: 0 24px 60px rgba(28, 44, 74, 0.28), 0 2px 8px rgba(28, 44, 74, 0.16);
+  --menu-shadow: 0 18px 40px rgba(28, 44, 74, 0.24);
+  --scroll-thumb: #ced7e5;
+  --scroll-thumb-hover: #b6c2d4;
+  --dashed-wash: rgba(18, 28, 45, 0.02);
+}
+
+:root {
+  --radius: 14px;
+  --radius-sm: 9px;
+  --panel-width: 588px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+body {
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-size: 13.5px;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------------------------------------------------------------- backdrop */
+
+/* Le voile couvre l'écran dès la première image, à sa taille définitive : il ne
+   partage pas l'animation d'échelle du panneau, qui donnerait l'impression que
+   tout l'écran grandit. Il ne fait que se fondre. */
+#backdrop {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 100% 50%, var(--scrim-glow), transparent 60%),
+    linear-gradient(90deg, var(--scrim-near), var(--scrim-far));
+}
+
+/* Le voile apparaît d'un coup, sans fondu.
+   Aucune animation d'entrée ne touche plus à l'opacité : en réapparaissant, la
+   fenêtre présente sa dernière image composée, panneau déjà dessiné. Repartir de
+   `opacity: 0` le faisait alors disparaître puis revenir — le clignotement. */
+
+/* ------------------------------------------------------------------- panel */
+
+#panel {
+  position: fixed;
+  top: 22px;
+  right: 22px;
+  bottom: 22px;
+  width: var(--panel-width);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, var(--panel-sheen), transparent 180px),
+    linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  box-shadow:
+    0 0 0 1px var(--panel-inset) inset,
+    var(--panel-shadow);
+  overflow: hidden;
+}
+
+/* Origine à droite : le panneau se déplie depuis le bord auquel il est ancré,
+   pas depuis le vide. */
+#panel {
+  transform-origin: 100% 45%;
+}
+
+/* Tant que l'overlay est masqué, le panneau attend dans son état de départ. La
+   webview compose encore : l'image conservée est donc celle du début de
+   l'animation. Sans cela, la fenêtre réapparaissait avec le panneau en place,
+   qui sautait ensuite à sa position de départ pour jouer le glissement. */
+body.is-closed #panel {
+  transform: scale(0.965) translateX(14px);
+}
+
+body.is-opening #panel {
+  animation: panel-in 180ms var(--ease);
+}
+
+@keyframes panel-in {
+  from {
+    transform: scale(0.965) translateX(14px);
+  }
+}
+
+/* -------------------------------------------------------------------- head */
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 9px;
+  background: linear-gradient(140deg, #3b2e8f, #1fb6d8);
+  box-shadow: 0 0 18px rgba(31, 182, 216, 0.28);
+  position: relative;
+}
+
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 8px 7px;
+  border-radius: 2px;
+  background: linear-gradient(#fff 2px, transparent 0) 0 0 / 100% 5px repeat-y;
+  opacity: 0.9;
+}
+
+.brand-text {
+  min-width: 0;
+}
+
+/* Seule ligne de l'en-tête depuis le retrait du titre : elle prend sa place. */
+#subtitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.head-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+
+.icon-btn:hover {
+  background: var(--bg-3);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.icon-btn.danger:hover {
+  color: var(--danger);
+  border-color: var(--danger-edge);
+  background: var(--danger-wash);
+}
+
+.icon-btn:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------------- views */
+
+.view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.view[hidden] {
+  display: none;
+}
+
+.view-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 6px;
+}
+
+.view-head h2 {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg-2);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms;
+}
+
+.back-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.back-btn:hover {
+  color: var(--text);
+  border-color: var(--accent-deep);
+}
+
+/* ------------------------------------------------------------------ search */
+
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 12px 14px 10px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 11px;
+  width: 15px;
+  height: 15px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+#search {
+  width: 100%;
+  padding: 10px 34px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  user-select: text;
+  transition: border-color 120ms, box-shadow 120ms, background 120ms;
+}
+
+#search::placeholder {
+  color: var(--text-faint);
+}
+
+#search:focus {
+  outline: none;
+  background: var(--bg-3);
+  border-color: var(--accent-deep);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.clear-btn {
+  position: absolute;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  padding: 4px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--bg-3);
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.clear-btn:hover {
+  color: var(--text);
+}
+
+/* -------------------------------------------------------------------- list */
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 0 10px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+/* Vidée de ses résultats, la liste ne doit plus occuper d'espace : c'est le
+   message « aucun résultat » qui prend toute la hauteur et s'y centre. */
+.list[hidden] {
+  display: none;
+}
+
+.list::-webkit-scrollbar,
+.form::-webkit-scrollbar,
+.select-menu::-webkit-scrollbar {
+  width: 9px;
+}
+
+.list::-webkit-scrollbar-thumb,
+.form::-webkit-scrollbar-thumb,
+.select-menu::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 8px;
+}
+
+.list::-webkit-scrollbar-thumb:hover,
+.form::-webkit-scrollbar-thumb:hover,
+.select-menu::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: content-box;
+}
+
+.card {
+  position: relative;
+  min-width: 0;
+  padding: 10px 11px 9px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+  cursor: default;
+  transition: background 110ms, border-color 110ms;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 110ms;
+}
+
+.card:hover {
+  background: var(--bg-2);
+  border-color: var(--line-soft);
+}
+
+.card.is-active {
+  background: linear-gradient(90deg, var(--accent-wash), var(--bg-2) 60%);
+  border-color: var(--accent-edge);
+}
+
+.card.is-active::before {
+  opacity: 1;
+}
+
+.card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-name mark {
+  background: var(--mark-bg);
+  color: var(--mark-fg);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+.card-tenant {
+  flex: none;
+  font-size: 11px;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  color: var(--text-faint);
+  max-width: 45%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.chip {
+  padding: 1.5px 7px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  font-size: 10.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  min-width: 0;
+}
+
+/* Les liens web sur une rangée, ce qui s'ouvre en local sur la suivante. */
+.card-rows {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Les liens d'une fiche défilent à l'intérieur de celle-ci. Sans cela, un client
+   très fourni élargit sa carte, la liste déborde, et c'est tout l'overlay qui se
+   met à défiler horizontalement. */
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.card-actions::-webkit-scrollbar {
+  height: 5px;
+}
+
+.card-actions::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 6px;
+}
+
+.card-actions::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+.card-actions > * {
+  flex: none;
+}
+
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4.5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg-2);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 110ms, border-color 110ms, background 110ms, transform 110ms;
+}
+
+.link-btn .ico {
+  display: inline-flex;
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.link-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-3);
+  border-color: var(--accent-deep);
+  transform: translateY(-1px);
+}
+
+.link-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.link-btn:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.card-tools {
+  display: flex;
+  flex: none;
+  gap: 3px;
+}
+
+.tool-btn {
+  width: 24px;
+  height: 24px;
+  padding: 5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color 110ms, background 110ms;
+}
+
+.tool-btn:hover {
+  color: var(--text);
+  background: var(--bg-3);
+}
+
+.tool-btn.confirm {
+  width: auto;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--danger);
+  background: var(--danger-wash);
+  border-color: var(--danger-edge);
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.empty[hidden] {
+  display: none;
+}
+
+.empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.empty-hint {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+/* ------------------------------------------------------------------- forms */
+
+.form {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+/* Le formulaire défile : sans cela ses blocs se compriment sous leur hauteur
+   naturelle dès qu'il déborde, et les sections se chevauchent. */
+.form > * {
+  flex: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.label em {
+  font-style: normal;
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.field input,
+.profile-card-head input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  user-select: text;
+  transition: border-color 120ms, box-shadow 120ms, background 120ms;
+}
+
+.field input:focus,
+.profile-card-head input:focus {
+  outline: none;
+  background: var(--bg-3);
+  border-color: var(--accent-deep);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.row {
+  display: flex;
+  gap: 7px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px;
+}
+
+.section-title {
+  margin-top: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.section-hint {
+  margin-top: -6px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.section-hint code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--accent);
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--dashed-wash);
+  min-height: 34px;
+}
+
+.preview-line {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.preview-line b {
+  flex: none;
+  width: 80px;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+.preview-line span {
+  color: var(--accent);
+  word-break: break-all;
+  user-select: text;
+}
+
+.preview-line.muted span {
+  color: var(--text-faint);
+}
+
+.path {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-2);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  word-break: break-all;
+  user-select: text;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.primary-btn,
+.ghost-btn {
+  padding: 8px 15px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms, border-color 120ms, color 120ms, background 120ms;
+}
+
+.primary-btn {
+  border: 1px solid var(--accent-deep);
+  background: linear-gradient(180deg, var(--accent), var(--accent-deep));
+  color: var(--accent-ink);
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+.primary-btn:hover {
+  filter: brightness(1.08);
+}
+
+.ghost-btn {
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--text-dim);
+}
+
+.ghost-btn:hover {
+  color: var(--text);
+  background: var(--bg-3);
+  border-color: var(--accent-deep);
+}
+
+.ghost-btn.danger:hover {
+  color: var(--danger);
+  border-color: var(--danger-edge);
+  background: var(--danger-wash);
+}
+
+/* --------------------------------------------- dossiers supplementaires */
+
+.workspaces {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspaces:empty {
+  display: none;
+}
+
+.workspace-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.workspace-row .ws-name {
+  flex: 0 0 32%;
+}
+
+.workspace-row .ws-path {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px dashed var(--accent-edge);
+  border-radius: 8px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms, filter 120ms;
+}
+
+.add-btn svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.add-btn:hover {
+  border-style: solid;
+  border-color: var(--accent-deep);
+  filter: brightness(1.12);
+}
+
+/* ------------------------------------------------- liste déroulante maison */
+
+/* Les `<select>` natifs de la webview ouvrent un menu dessiné par le système,
+   impossible à thémer et étranger au reste de l'overlay. Celui-ci est en HTML.
+
+   Son menu flotte par-dessus le contenu, en absolu dans le formulaire qui défile :
+   il suit le défilement sans calcul, et sa hauteur, bornée par le script à la
+   place visible, le garde à l'abri du rognage. Il s'ouvre vers le haut quand la
+   place manque en bas. */
+.select {
+  position: relative;
+}
+
+.select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms, box-shadow 120ms, background 120ms;
+}
+
+.select-trigger:hover:not(:disabled) {
+  background: var(--bg-3);
+}
+
+.select-trigger:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.select.is-open .select-trigger {
+  background: var(--bg-3);
+  border-color: var(--accent-deep);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.select-texts {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.select-main {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.select-sub {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.select-caret {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--text-faint);
+  transition: transform 140ms var(--ease);
+}
+
+.select.is-open .select-caret {
+  transform: rotate(180deg);
+}
+
+.select-icon {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.select-icon[hidden] {
+  display: none;
+}
+
+.select-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: min(500px, 100dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-2);
+  box-shadow: var(--menu-shadow);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.select-menu.is-entering {
+  animation: menu-in 110ms var(--ease);
+}
+
+.select-menu[hidden] {
+  display: none;
+}
+
+.select.opens-up .select-menu {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.select.opens-up .select-menu.is-entering {
+  animation-name: menu-in-up;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes menu-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.select-option:hover,
+.select-option.is-highlighted {
+  background: var(--bg-3);
+}
+
+.select-option[aria-selected="true"] {
+  background: var(--accent-wash);
+}
+
+.select-check {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--accent);
+  opacity: 0;
+}
+
+.select-option[aria-selected="true"] .select-check {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------ toggle */
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex: none;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  transition: background 140ms, border-color 140ms;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transition: transform 140ms var(--ease), background 140ms;
+}
+
+.toggle input:checked + .toggle-track {
+  background: var(--accent-wash);
+  border-color: var(--accent-deep);
+}
+
+.toggle input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(16px);
+  background: var(--accent);
+}
+
+.toggle input:focus-visible + .toggle-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.toggle-label {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+/* ------------------------------------------------------- jetons de gabarit */
+
+/* Le texte du champ est transparent : un calque aligné au pixel le redessine par
+   dessus, jetons colorés. Même police, même corps, même marge intérieure, même
+   bordure (transparente) : la moindre différence décalerait le curseur. */
+.token-input {
+  position: relative;
+}
+
+.token-input input {
+  color: transparent;
+  caret-color: var(--text);
+}
+
+.token-input input::placeholder {
+  color: var(--text-faint);
+}
+
+.token-input input::selection {
+  background: var(--mark-bg);
+  color: transparent;
+}
+
+.token-mirror {
+  position: absolute;
+  inset: 0;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  overflow: hidden;
+  pointer-events: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: normal;
+  white-space: pre;
+  color: var(--text);
+}
+
+.token-mirror-content {
+  display: inline-block;
+}
+
+.token {
+  color: var(--accent);
+}
+
+.token.is-unknown {
+  color: var(--danger);
+}
+
+/* ------------------------------------------------------ profils de navigation */
+
+.browser-profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--dashed-wash);
+}
+
+.profile-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-card-head input {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.profile-rank {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent-wash);
+  border: 1px solid var(--accent-edge);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.tool-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+.browser-logo,
+.profile-avatar {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.profile-avatar {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-initial {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+/* ----------------------------------------------------------- mise à jour */
+
+.update-btn {
+  position: relative;
+  color: var(--accent);
+}
+
+.update-btn[hidden] {
+  display: none;
+}
+
+.update-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-1);
+}
+
+/* La fenêtre de mise à jour couvre le panneau, pas l'écran : elle reste dans le
+   même empilement que lui, et le voile de l'overlay continue de fermer au clic. */
+.dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: var(--scrim-near);
+}
+
+.dialog[hidden] {
+  display: none;
+}
+
+.dialog-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  box-shadow: var(--menu-shadow);
+}
+
+.dialog.is-entering .dialog-card {
+  animation: dialog-in 160ms var(--ease);
+}
+
+@keyframes dialog-in {
+  from {
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.dialog-card h2 {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.update-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  font-size: 12.5px;
+}
+
+.update-facts dt {
+  color: var(--text-faint);
+}
+
+.update-facts dd {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.update-notes {
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--bg-0);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  user-select: text;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.update-notes[hidden] {
+  display: none;
+}
+
+.progress {
+  height: 6px;
+  border-radius: 6px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+
+.progress[hidden] {
+  display: none;
+}
+
+.progress-bar {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-deep), var(--accent));
+  transition: width 120ms linear;
+}
+
+.update-status {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.update-status[hidden] {
+  display: none;
+}
+
+.dialog-card .form-actions {
+  margin-top: 2px;
+}
+
+/* --------------------------------------------------- sections des réglages */
+
+/* `display: flex` l'emporterait sur l'attribut `hidden` : on le rétablit. */
+.form[hidden],
+.settings-section[hidden],
+.form-actions[hidden] {
+  display: none;
+}
+
+.settings-menu {
+  gap: 6px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--bg-3);
+  border-color: var(--accent-edge);
+  outline: none;
+}
+
+.menu-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  padding: 7px;
+  border-radius: 8px;
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.menu-texts {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.menu-main {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.menu-sub {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--text-faint);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.settings-section > .section-hint {
+  margin-top: 0;
+}
+
+/* ------------------------------------------------------ liste de choix */
+
+.choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.choice:hover {
+  background: var(--bg-3);
+}
+
+.choice[aria-checked="true"] {
+  border-color: var(--accent-edge);
+  background: var(--accent-wash);
+}
+
+.choice-sub {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.choice-check {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--accent);
+  opacity: 0;
+}
+
+.choice[aria-checked="true"] .choice-check {
+  opacity: 1;
+}
+
+/* ----------------------------------------------------- capture du raccourci */
+
+.row input[readonly] {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12.5px;
+  cursor: default;
+}
+
+.dialog-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.dialog-hint:empty {
+  display: none;
+}
+
+.hotkey-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 64px;
+  padding: 14px;
+  border: 1px dashed var(--accent-edge);
+  border-radius: 10px;
+  background: var(--accent-wash);
+}
+
+.hotkey-preview kbd {
+  padding: 5px 11px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hotkey-placeholder {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg-2);
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.dialog-actions {
+  align-items: center;
+}
+
+.keys-hint {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.keys-hint kbd:not(:first-child) {
+  margin-left: 6px;
+}
+
+/* ------------------------------------------------------------------- toast */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 34px;
+  transform: translate(-50%, 8px);
+  max-width: 62vw;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-1));
+  box-shadow: var(--menu-shadow);
+  font-size: 12.5px;
+  color: var(--text);
+  opacity: 0;
+  transition: opacity 160ms, transform 160ms var(--ease);
+  pointer-events: none;
+}
+
+.toast[hidden] {
+  display: none;
+}
+
+.toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.toast.is-error {
+  border-color: var(--danger-edge);
+  color: var(--danger);
+}
+
+.toast.is-ok {
+  border-color: var(--accent-edge);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.is-opening #panel,
+  .select-menu.is-entering,
+  .dialog.is-entering .dialog-card {
+    animation-duration: 1ms;
+  }
+
+  * {
+    transition-duration: 1ms !important;
+  }
+}
