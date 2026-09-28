@@ -100,7 +100,6 @@ const dom = {
   updateDate: document.getElementById("update-date"),
   updateSize: document.getElementById("update-size"),
   updateFlavor: document.getElementById("update-flavor"),
-  updateNotes: document.getElementById("update-notes"),
   updateProgress: document.getElementById("update-progress"),
   updateStatus: document.getElementById("update-status"),
   updateInstall: document.getElementById("btn-update-install"),
@@ -1130,8 +1129,6 @@ function openUpdateDialog() {
     : "—";
   dom.updateSize.textContent = formatSize(update.size);
   dom.updateFlavor.textContent = flavor;
-  dom.updateNotes.textContent = update.notes.trim();
-  dom.updateNotes.hidden = !update.notes.trim();
   if (!state.installing) {
     dom.updateProgress.hidden = true;
     dom.updateStatus.hidden = true;
@@ -1182,6 +1179,9 @@ async function installUpdate() {
 }
 
 dom.updateButton.addEventListener("click", openUpdateDialog);
+document.getElementById("btn-update-page").addEventListener("click", async () => {
+  await call("open_update_page");
+});
 dom.updateLater.addEventListener("click", closeUpdateDialog);
 dom.updateInstall.addEventListener("click", installUpdate);
 dom.updateDialog.addEventListener("mousedown", (event) => {

@@ -63,7 +63,7 @@ navigation, l'apparence, le raccourci global et la gestion des données. Le racc
 se change en le tapant directement au clavier.
 
 Quand une nouvelle version est publiée, une icône apparaît dans l'en-tête du
-panneau : un clic affiche la version, sa date et son poids, et « Mettre à jour et
+panneau : un clic affiche la version, sa date, son poids et un lien vers la release, et « Mettre à jour et
 redémarrer » s'occupe du reste.
 
 ## Données

@@ -25,7 +25,7 @@ tauri-plugin-dialog = "2.7.3"
 tauri-plugin-global-shortcut = "2.3.2"
 tauri-plugin-single-instance = "2.4.5"
 thiserror = "2.0.20"
-ureq = { version = "3.2.1", default-features = false, features = ["native-tls-no-default", "json"] }
+ureq = { version = "3.2.1", default-features = false, features = ["native-tls", "json"] }
 
 # Hors de portée de l'API Tauri : purge du working set du processus et de ses
 # moteurs WebView2, et désactivation de l'animation d'ouverture de fenêtre.

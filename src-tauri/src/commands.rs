@@ -241,6 +241,20 @@ pub async fn install_update<R: Runtime>(app: AppHandle<R>) -> AppResult<()> {
         .map_err(|error| AppError::Update(format!("tâche interrompue : {error}")))?
 }
 
+/// Ouvre dans le navigateur la page GitHub de la mise à jour disponible.
+///
+/// L'URL vient de l'état du backend, jamais du front.
+#[tauri::command]
+pub fn open_update_page<R: Runtime>(app: AppHandle<R>, store: State<'_, Store>) -> AppResult<()> {
+    let info = app
+        .state::<UpdateState>()
+        .available()?
+        .ok_or_else(|| validation("Aucune mise à jour n'est disponible."))?;
+    browser::open_web(&info.page_url, &store.settings()?)?;
+    let window = overlay::window(&app)?;
+    overlay::hide(&window)
+}
+
 /// Masque l'overlay.
 #[tauri::command]
 pub fn hide_overlay<R: Runtime>(app: AppHandle<R>) -> AppResult<()> {

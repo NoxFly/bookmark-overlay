@@ -129,8 +129,8 @@ Le fichier de données est propre à chaque poste :
 ## Mise à jour
 
 Quand une nouvelle version est publiée, une icône apparaît dans l'en-tête. La
-fenêtre de mise à jour affiche la version, la date de publication, le poids et les
-notes de version ; **Mettre à jour et redémarrer** télécharge, installe et relance
+fenêtre de mise à jour affiche la version, la date de publication, le poids et un
+lien vers la release sur GitHub ; **Mettre à jour et redémarrer** télécharge, installe et relance
 l'application sans autre intervention, qu'elle ait été installée ou copiée en
 version portable. La version portable doit se trouver dans un dossier accessible en
 écriture.

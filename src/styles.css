@@ -28,6 +28,7 @@
   --accent-ink: #04121d;
 
   --danger: #ff6b6b;
+  --success: #3ecf8e;
   --danger-wash: rgba(255, 107, 107, 0.08);
   --danger-edge: rgba(255, 107, 107, 0.35);
 
@@ -67,6 +68,7 @@
   --accent-ink: #ffffff;
 
   --danger: #c62f42;
+  --success: #1a9b5c;
   --danger-wash: rgba(198, 47, 66, 0.07);
   --danger-edge: rgba(198, 47, 66, 0.3);
 
@@ -1279,22 +1281,15 @@ input:focus-visible {
 
 .update-btn {
   position: relative;
-  color: var(--accent);
+  color: var(--success);
+}
+
+.update-btn:hover {
+  color: var(--success);
 }
 
 .update-btn[hidden] {
   display: none;
-}
-
-.update-dot {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 2px var(--bg-1);
 }
 
 /* La fenêtre de mise à jour couvre le panneau, pas l'écran : elle reste dans le
@@ -1357,23 +1352,21 @@ input:focus-visible {
   font-weight: 500;
 }
 
-.update-notes {
-  max-height: 160px;
-  overflow-y: auto;
-  padding: 8px 10px;
-  border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  background: var(--bg-0);
-  font-size: 11.5px;
-  color: var(--text-dim);
-  white-space: pre-wrap;
-  user-select: text;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scroll-thumb) transparent;
+.text-link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
-.update-notes[hidden] {
-  display: none;
+.text-link:hover {
+  color: var(--accent-deep);
 }
 
 .progress {

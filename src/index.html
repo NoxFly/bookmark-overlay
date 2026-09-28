@@ -20,7 +20,6 @@
         <div class="head-actions">
           <button type="button" id="btn-update" class="icon-btn update-btn" title="Mise à jour disponible" aria-label="Mise à jour disponible" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10.5M7.5 10 12 14.5 16.5 10M5 19h14" /></svg>
-            <span class="update-dot" aria-hidden="true"></span>
           </button>
           <button type="button" id="btn-new" class="icon-btn" title="Nouveau client (Ctrl+N)" aria-label="Nouveau client">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -279,7 +278,7 @@
             <dt>Livrable</dt>
             <dd id="update-flavor"></dd>
           </dl>
-          <div id="update-notes" class="update-notes"></div>
+          <button type="button" id="btn-update-page" class="text-link">Voir la release sur GitHub</button>
           <div id="update-progress" class="progress" hidden><div class="progress-bar"></div></div>
           <p id="update-status" class="update-status" hidden></p>
           <div class="form-actions">
