@@ -1,0 +1,29 @@
+{
+  // Compilation par tsc seul, sans bundler : chaque module de `src/` devient un
+  // module ES de `public/app/`, chargé tel quel par WebView2.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    // Les imports portent l'extension `.js` du fichier émis : c'est ce que le
+    // navigateur résout, et tsc les rattache à leur source `.ts`.
+    "moduleResolution": "bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "rootDir": "src",
+    "outDir": "public/app",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "removeComments": false,
+    "sourceMap": false,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}

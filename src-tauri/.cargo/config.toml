@@ -1,0 +1,8 @@
+# Génération des types TypeScript de l'interface par ts-rs, à chaque `cargo test`.
+[env]
+# Relatif au dossier qui contient `.cargo`, c'est-à-dire `src-tauri/`.
+TS_RS_EXPORT_DIR = { value = "../frontend/src/types/generated", relative = true }
+# Les tailles et compteurs tiennent dans un `number` : pas de `bigint` côté interface.
+TS_RS_LARGE_INT = "number"
+# Imports avec l'extension du fichier émis, comme le reste de l'interface.
+TS_RS_IMPORT_EXTENSION = "js"

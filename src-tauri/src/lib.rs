@@ -1,3 +1,18 @@
+// Bookmark Overlay
+// Copyright (C) 2026 NoxFly
+//
+// FR : Ce programme est un logiciel libre ; vous pouvez le redistribuer ou le
+// modifier selon les termes de la GNU Affero General Public License, version 3,
+// telle que publiée par la Free Software Foundation. Il est distribué dans
+// l'espoir d'être utile, mais SANS AUCUNE GARANTIE. Voir le fichier LICENSE.
+//
+// EN : This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Affero General Public License, version 3, as
+// published by the Free Software Foundation. It is distributed in the hope that
+// it will be useful, but WITHOUT ANY WARRANTY. See the LICENSE file.
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Overlay de consultation du référentiel clients.
 //!
 //! L'application vit dans la zone de notification, sans fenêtre visible ni entrée
@@ -10,7 +25,7 @@ mod commands;
 mod crypto;
 mod error;
 mod launcher;
-mod legacy;
+mod migration;
 mod model;
 mod overlay;
 mod shortcut;
@@ -85,9 +100,10 @@ pub fn run() -> AppResult<()> {
             let handle = app.handle().clone();
 
             let config_dir = app.path().app_config_dir()?;
-            // Une installation antérieure au renommage garde ses données et son
-            // démarrage automatique, faute de quoi elle repartirait de zéro.
-            let adopted = legacy::adopt_legacy_config(&config_dir, DATA_FILE)?;
+            // Après un changement d'identifiant, les données d'un dossier
+            // `*.bookmark-overlay` voisin sont reprises : l'utilisateur retrouve ses
+            // fiches sans rien faire.
+            migration::adopt_previous_identifier(&config_dir, DATA_FILE)?;
             let store = Store::load(config_dir.join(DATA_FILE))?;
             let fresh = store.is_fresh();
             adopt_local_edge_profile(&store, fresh);
@@ -104,10 +120,7 @@ pub fn run() -> AppResult<()> {
             }
 
             install_shortcut(&handle, &settings);
-            enable_autostart_on_first_run(
-                &handle,
-                fresh || (adopted && legacy::take_legacy_autostart()),
-            );
+            enable_autostart_on_first_run(&handle, fresh);
             build_tray(app)?;
             updater::start_background_checks(handle);
 

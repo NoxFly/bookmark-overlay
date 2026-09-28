@@ -1,0 +1,16 @@
+{
+  "name": "bookmark-overlay-ui",
+  "private": true,
+  "description": "Interface de Bookmark Overlay : TypeScript compilé par tsc seul, sans bundler.",
+  "author": "NoxFly",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "build:ui": "tsc -p tsconfig.json",
+    "watch:ui": "tsc -p tsconfig.json --watch",
+    "check:ui": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

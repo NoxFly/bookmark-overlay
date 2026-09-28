@@ -1,3 +1,18 @@
+// Bookmark Overlay
+// Copyright (C) 2026 NoxFly
+//
+// FR : Ce programme est un logiciel libre ; vous pouvez le redistribuer ou le
+// modifier selon les termes de la GNU Affero General Public License, version 3,
+// telle que publiée par la Free Software Foundation. Il est distribué dans
+// l'espoir d'être utile, mais SANS AUCUNE GARANTIE. Voir le fichier LICENSE.
+//
+// EN : This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Affero General Public License, version 3, as
+// published by the Free Software Foundation. It is distributed in the hope that
+// it will be useful, but WITHOUT ANY WARRANTY. See the LICENSE file.
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Modèle de données persisté : clients et réglages de l'overlay.
 
 use serde::{Deserialize, Serialize};
@@ -24,6 +39,7 @@ const MAX_LINKS: usize = 32;
 /// Complète les trois liens calculés (DevOps, GitHub, Admin Center) pour tout ce
 /// qui n'entre pas dans un gabarit : un extranet, une supervision, un ticket.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct CustomLink {
     /// Libellé affiché sur le bouton.
@@ -66,6 +82,7 @@ impl CustomLink {
 /// le harnais de test, la documentation...) : chacun apparaît comme un bouton
 /// distinct dans la liste et s'ouvre dans Visual Studio Code.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct Workspace {
     /// Libellé affiché sur le bouton.
@@ -108,6 +125,7 @@ impl Workspace {
 /// réutilisé. Le tenant a longtemps joué ce rôle, mais il est facultatif : tous
 /// les clients n'en ont pas, et une fiche sans tenant reste une fiche.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct Customer {
     /// Clé technique, opaque et stable.
@@ -247,6 +265,7 @@ impl Customer {
 
 /// Navigateur dans lequel un profil de navigation ouvre ses liens.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub enum BrowserKind {
     /// Navigateur par défaut de Windows, sans choix de profil.
@@ -293,6 +312,7 @@ impl BrowserKind {
 /// Chaque lien web part dans le premier profil dont un hôte correspond ; faute de
 /// correspondance, dans le premier profil de la liste.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct BrowserProfile {
     /// Libellé affiché dans les réglages.
@@ -375,6 +395,7 @@ impl BrowserProfile {
 
 /// Réglages modifiables depuis l'overlay.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase", from = "StoredSettings")]
 pub struct Settings {
     /// Gabarit d'URL Azure DevOps ; jetons acceptés : `{devopsId}`, `{githubId}`, `{tenant}`.
@@ -388,6 +409,7 @@ pub struct Settings {
     /// Raccourci global d'ouverture de l'overlay, au format accélérateur Tauri.
     pub hotkey: String,
     /// Apparence de l'interface : `system`, `light` ou `dark`.
+    #[cfg_attr(test, ts(type = r#""system" | "light" | "dark""#))]
     pub theme: String,
     /// Installe les mises à jour dès qu'elles sont trouvées, sans rien demander.
     pub auto_update: bool,

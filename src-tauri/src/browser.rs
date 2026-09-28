@@ -1,3 +1,18 @@
+// Bookmark Overlay
+// Copyright (C) 2026 NoxFly
+//
+// FR : Ce programme est un logiciel libre ; vous pouvez le redistribuer ou le
+// modifier selon les termes de la GNU Affero General Public License, version 3,
+// telle que publiée par la Free Software Foundation. Il est distribué dans
+// l'espoir d'être utile, mais SANS AUCUNE GARANTIE. Voir le fichier LICENSE.
+//
+// EN : This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Affero General Public License, version 3, as
+// published by the Free Software Foundation. It is distributed in the hope that
+// it will be useful, but WITHOUT ANY WARRANTY. See the LICENSE file.
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Navigateurs : détection de ceux installés et de leurs profils, puis ouverture
 //! d'un lien dans le profil de navigation qui revendique son hôte.
 //!
@@ -137,6 +152,7 @@ const SPECS: [BrowserSpec; 7] = [
 
 /// Un navigateur tel que vu sur la machine.
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct InstalledBrowser {
     /// Navigateur concerné.
@@ -149,6 +165,7 @@ pub struct InstalledBrowser {
 
 /// Un profil de navigateur détecté sur la machine.
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct DetectedProfile {
     /// Valeur attendue en ligne de commande : dossier (Chromium) ou nom (Firefox).

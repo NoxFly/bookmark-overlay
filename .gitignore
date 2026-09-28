@@ -11,6 +11,9 @@ data.json
 data.backup-*
 data.json.avant-chiffrement
 
+# Interface compilée depuis frontend/src/ par `npm run build:ui`
+/frontend/public/app/
+
 # Outils
 node_modules/
 .DS_Store
