@@ -78,6 +78,7 @@ pub fn run() -> AppResult<()> {
             commands::export_plain_data,
             commands::import_data,
             commands::install_update,
+            commands::open_update_page,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

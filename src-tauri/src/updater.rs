@@ -41,8 +41,13 @@ pub const EVENT_PROGRESS: &str = "update://progress";
 /// Argument passé au nouvel exécutable portable : l'identifiant du processus à attendre.
 const WAIT_ARGUMENT: &str = "--wait-pid=";
 
-/// Délai avant la première vérification : le démarrage de Windows a mieux à faire.
-const FIRST_CHECK_DELAY: Duration = Duration::from_secs(30);
+/// Délai avant la première vérification : l'application finit de démarrer d'abord.
+/// La vérification tourne sur son propre thread et ne retarde jamais l'overlay.
+const FIRST_CHECK_DELAY: Duration = Duration::from_secs(3);
+
+/// Délai avant de réessayer une vérification ratée : à l'ouverture de session, le
+/// réseau n'est souvent pas encore prêt.
+const RETRY_DELAY: Duration = Duration::from_secs(2 * 60);
 
 /// Intervalle entre deux vérifications.
 const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
@@ -89,8 +94,8 @@ pub struct UpdateInfo {
     pub published_at: String,
     /// Taille du livrable, en octets.
     pub size: u64,
-    /// Notes de version, en texte brut.
-    pub notes: String,
+    /// Page de la release sur GitHub.
+    pub page_url: String,
     /// Livrable qui sera installé.
     pub flavor: Flavor,
     /// Nom du fichier du livrable.
@@ -140,7 +145,7 @@ struct Release {
     #[serde(default)]
     published_at: Option<String>,
     #[serde(default)]
-    body: Option<String>,
+    html_url: String,
     #[serde(default)]
     assets: Vec<Asset>,
 }
@@ -201,16 +206,21 @@ pub fn start_background_checks<R: Runtime>(app: AppHandle<R>) {
         .spawn(move || {
             std::thread::sleep(FIRST_CHECK_DELAY);
             loop {
-                // Hors ligne, quota de l'API atteint : on retentera au cycle suivant.
-                if let Ok(Some(info)) = check(repository) {
-                    let state = app.state::<UpdateState>();
-                    if state.set_available(info.clone()).is_ok() {
-                        // Le front n'est peut-être pas encore prêt : il relira l'état
-                        // au prochain amorçage.
-                        let _ = app.emit(EVENT_AVAILABLE, &info);
+                let next = match check(repository) {
+                    Ok(Some(info)) => {
+                        let state = app.state::<UpdateState>();
+                        if state.set_available(info.clone()).is_ok() {
+                            // Le front n'est peut-être pas encore prêt : il relira
+                            // l'état au prochain amorçage.
+                            let _ = app.emit(EVENT_AVAILABLE, &info);
+                        }
+                        CHECK_INTERVAL
                     }
-                }
-                std::thread::sleep(CHECK_INTERVAL);
+                    Ok(None) => CHECK_INTERVAL,
+                    // Hors ligne, quota de l'API atteint : on réessaie bientôt.
+                    Err(_) => RETRY_DELAY,
+                };
+                std::thread::sleep(next);
             }
         });
     // Sans ce thread, l'application fonctionne : elle ne se met simplement pas à jour.
@@ -264,12 +274,19 @@ fn select_update(
     if !safe_name || !asset.browser_download_url.starts_with(&expected_prefix) {
         return None;
     }
+    // Ouverte dans le navigateur : elle doit rester une page du dépôt.
+    let expected_page = format!("https://github.com/{repository}/releases/");
+    let page_url = if release.html_url.starts_with(&expected_page) {
+        release.html_url
+    } else {
+        format!("https://github.com/{repository}/releases/latest")
+    };
 
     Some(UpdateInfo {
         version,
         published_at: release.published_at.unwrap_or_default(),
         size: asset.size,
-        notes: release.body.unwrap_or_default(),
+        page_url,
         flavor,
         asset_name: asset.name,
         download_url: asset.browser_download_url,
@@ -520,7 +537,7 @@ mod tests {
         Release {
             tag_name: tag.to_owned(),
             published_at: Some("2026-09-28T10:00:00Z".to_owned()),
-            body: Some("notes".to_owned()),
+            html_url: format!("https://github.com/{REPO}/releases/tag/{tag}"),
             assets: assets
                 .iter()
                 .map(|name| Asset {
@@ -579,6 +596,17 @@ mod tests {
     }
 
     #[test]
+    fn a_foreign_release_page_falls_back_to_the_repository() {
+        let mut foreign = release("v0.2.0", &BOTH);
+        foreign.html_url = "https://exemple.test/piege".to_owned();
+        let info = select_update(foreign, REPO, "0.1.0", Flavor::Portable).expect("mise à jour");
+        assert_eq!(
+            info.page_url,
+            format!("https://github.com/{REPO}/releases/latest")
+        );
+    }
+
+    #[test]
     fn an_asset_hosted_elsewhere_is_refused() {
         let mut foreign = release("v0.2.0", &BOTH);
         for asset in &mut foreign.assets {
@@ -597,6 +625,25 @@ mod tests {
             Flavor::Installer
         )
         .is_none());
+    }
+
+    /// Régression : avec la seule feature `native-tls-no-default`, ureq paniquait à
+    /// la première requête HTTPS, et `panic = "abort"` faisait tomber l'application.
+    #[test]
+    fn an_https_request_fails_cleanly_instead_of_panicking() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("écoute locale");
+        let port = listener.local_addr().expect("adresse").port();
+        let server = std::thread::spawn(move || {
+            // Accepte puis referme aussitôt : la négociation TLS échoue.
+            let _ = listener.accept();
+        });
+
+        let outcome = agent(Some(Duration::from_secs(5)))
+            .get(&format!("https://127.0.0.1:{port}/"))
+            .call();
+
+        assert!(outcome.is_err());
+        let _ = server.join();
     }
 
     #[test]

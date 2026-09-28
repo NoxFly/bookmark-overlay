@@ -77,8 +77,10 @@ Un commit portant `[skip release]` dans son message ne publie rien.
 
 ## Mise à jour automatique
 
-Le binaire interroge `GET /repos/<dépôt>/releases/latest` de l'API GitHub 30 secondes
-après le démarrage, puis toutes les 6 heures. Le dépôt est celui qui l'a construit :
+Le binaire interroge `GET /repos/<dépôt>/releases/latest` de l'API GitHub quelques
+secondes après le démarrage, sur un thread à part qui ne retarde jamais l'overlay,
+puis toutes les 6 heures ; une vérification ratée (réseau pas encore prêt à
+l'ouverture de session, quota de l'API) est retentée 2 minutes plus tard. Le dépôt est celui qui l'a construit :
 `GITHUB_REPOSITORY`, posée par GitHub Actions, est capturée à la compilation. **Un
 binaire construit en local ne cherche donc jamais de mise à jour**, et le dépôt doit
 être public (l'API est appelée sans jeton).
