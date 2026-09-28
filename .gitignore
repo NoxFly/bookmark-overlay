@@ -1,0 +1,20 @@
+# Rust / Tauri
+/src-tauri/target/
+/src-tauri/gen/
+
+# Livrables regeneres par `npx @tauri-apps/cli@2 build`
+/dist/
+
+# Données locales (contiennent le référentiel clients)
+data
+data.json
+data.backup-*
+data.json.avant-chiffrement
+
+# Outils
+node_modules/
+.DS_Store
+Thumbs.db
+
+# Clés de chiffrement locales
+.env.local
