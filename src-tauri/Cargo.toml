@@ -1,0 +1,47 @@
+[package]
+name = "bookmark-overlay"
+version = "0.1.0"
+description = "Overlay de consultation rapide du referentiel clients"
+authors = ["Dorian Thivolle"]
+edition = "2021"
+rust-version = "1.82"
+
+[lib]
+name = "bookmark_overlay_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = ["codegen"] }
+
+[dependencies]
+aes-gcm = { version = "0.10.3", features = ["std"] }
+base64 = "0.22"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.10"
+tauri = { version = "2.11.6", features = ["tray-icon"] }
+tauri-plugin-autostart = "2.5.1"
+tauri-plugin-dialog = "2.7.3"
+tauri-plugin-global-shortcut = "2.3.2"
+tauri-plugin-single-instance = "2.4.5"
+thiserror = "2.0.20"
+ureq = { version = "3.2.1", default-features = false, features = ["native-tls-no-default", "json"] }
+
+# Hors de portée de l'API Tauri : purge du working set du processus et de ses
+# moteurs WebView2, et désactivation de l'animation d'ouverture de fenêtre.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Threading",
+] }
+
+# Profil release optimise pour la taille du binaire et le temps de demarrage :
+# moins de code a mapper = moins de pages a charger au boot du PC.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
