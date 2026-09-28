@@ -54,6 +54,7 @@ const state = {
   version: "",
   update: null,
   installing: false,
+  updatesEnabled: false,
   settingsSection: null,
   filtered: [],
   activeIndex: 0,
@@ -799,6 +800,7 @@ function renderSettings(autostartEnabled) {
   dom.hotkeyInput.value = formatAccelerator(state.settings.hotkey);
   for (const render of tokenRenderers) render();
   dom.dataPath.textContent = state.dataPath;
+  renderVersion();
   if (autostartEnabled !== undefined) dom.autostart.checked = autostartEnabled;
 
   renderBrowserProfiles(state.settings.browserProfiles);
@@ -1178,6 +1180,57 @@ async function installUpdate() {
   }
 }
 
+/** Version courante et disponibilité de la recherche manuelle. */
+function renderVersion() {
+  const checkButton = document.getElementById("btn-check-update");
+  document.getElementById("app-version").textContent = state.version;
+  document.getElementById("settings-version").textContent = `Bookmark Overlay ${state.version}`;
+  checkButton.disabled = !state.updatesEnabled;
+  const autoUpdate = document.getElementById("auto-update");
+  autoUpdate.checked = Boolean(state.settings && state.settings.autoUpdate);
+  autoUpdate.disabled = !state.updatesEnabled;
+  document.getElementById("update-hint").textContent = state.updatesEnabled
+    ? ""
+    : "build local : aucune mise à jour suivie";
+}
+
+/** Recherche une mise à jour à la demande, et ouvre la fenêtre si elle en trouve une. */
+async function checkForUpdate() {
+  const button = document.getElementById("btn-check-update");
+  button.disabled = true;
+  button.textContent = "Recherche…";
+  try {
+    const update = await call("check_update");
+    if (update) {
+      setUpdate(update);
+      openUpdateDialog();
+    }
+    else {
+      toast(`Bookmark Overlay est à jour (${state.version}).`);
+    }
+  }
+  catch {
+    // Le message d'erreur est déjà affiché par `call`.
+  }
+  finally {
+    button.textContent = "Rechercher une mise à jour";
+    button.disabled = !state.updatesEnabled;
+  }
+}
+
+document.getElementById("btn-check-update").addEventListener("click", checkForUpdate);
+
+document.getElementById("auto-update").addEventListener("change", async (event) => {
+  const enabled = event.target.checked;
+  try {
+    await persistSettings({ autoUpdate: enabled });
+    toast(enabled ? "Mises à jour automatiques activées." : "Mises à jour automatiques désactivées.");
+  }
+  catch {
+    // Le message d'erreur est déjà affiché : la bascule reprend l'état enregistré.
+    event.target.checked = !enabled;
+  }
+});
 dom.updateButton.addEventListener("click", openUpdateDialog);
 document.getElementById("btn-update-page").addEventListener("click", async () => {
   await call("open_update_page");
@@ -1477,6 +1530,7 @@ function applyBootstrap(data) {
   state.dataPath = data.dataPath;
   state.browsers = data.browsers;
   state.version = data.version;
+  state.updatesEnabled = data.updatesEnabled;
   setUpdate(data.update);
   applyTheme(data.settings.theme);
   renderSettings(data.autostartEnabled);
@@ -1661,6 +1715,7 @@ dom.settingsForm.addEventListener("submit", async (event) => {
     browserProfiles: collectBrowserProfiles(),
     hotkey: state.settings.hotkey,
     theme: state.settings.theme,
+    autoUpdate: state.settings.autoUpdate,
   };
   applyBootstrap(await call("save_settings", { settings }));
   toast("Réglages enregistrés.");

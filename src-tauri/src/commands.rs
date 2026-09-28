@@ -67,6 +67,8 @@ pub struct Bootstrap {
     pub version: &'static str,
     /// Mise à jour déjà trouvée, s'il y en a une.
     pub update: Option<UpdateInfo>,
+    /// Vrai si ce binaire sait chercher ses mises à jour.
+    pub updates_enabled: bool,
 }
 
 /// Assemble la vue de tous les clients.
@@ -96,6 +98,7 @@ pub fn bootstrap<R: Runtime>(app: AppHandle<R>, store: State<'_, Store>) -> AppR
         browsers: browser::detect(),
         version: updater::CURRENT_VERSION,
         update: app.state::<UpdateState>().available()?,
+        updates_enabled: updater::is_enabled(),
     })
 }
 
@@ -237,6 +240,15 @@ pub fn open_custom_link<R: Runtime>(
 pub async fn install_update<R: Runtime>(app: AppHandle<R>) -> AppResult<()> {
     let handle = app.clone();
     tauri::async_runtime::spawn_blocking(move || updater::install(&handle))
+        .await
+        .map_err(|error| AppError::Update(format!("tâche interrompue : {error}")))?
+}
+
+/// Recherche une mise à jour tout de suite, hors du thread principal.
+#[tauri::command]
+pub async fn check_update<R: Runtime>(app: AppHandle<R>) -> AppResult<Option<UpdateInfo>> {
+    let handle = app.clone();
+    tauri::async_runtime::spawn_blocking(move || updater::check_now(&handle))
         .await
         .map_err(|error| AppError::Update(format!("tâche interrompue : {error}")))?
 }

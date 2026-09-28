@@ -728,6 +728,42 @@ input:focus-visible {
   gap: 7px;
 }
 
+/* Version en texte simple, bouton de recherche aligné à droite. */
+.version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.version-text {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.version-text strong {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.version-text em {
+  margin-left: 6px;
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+.version-row > .ghost-btn {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* Le bouton garde son libellé sur une ligne : c'est le champ qui cède la place. */
+.row > .ghost-btn {
+  flex: none;
+  white-space: nowrap;
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1474,6 +1510,15 @@ input:focus-visible {
   width: 16px;
   height: 16px;
   flex: none;
+  color: var(--text-faint);
+}
+
+/* Rappel discret, poussé en bas du menu des réglages. */
+.settings-version {
+  margin-top: auto;
+  padding-top: 12px;
+  text-align: center;
+  font-size: 11px;
   color: var(--text-faint);
 }
 

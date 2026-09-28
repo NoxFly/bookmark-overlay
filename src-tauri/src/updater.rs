@@ -25,6 +25,8 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use crate::error::{validation, AppError, AppResult};
 use crate::launcher;
+use crate::overlay;
+use crate::store::Store;
 
 /// Dépôt `propriétaire/nom` dont les releases sont suivies.
 const REPOSITORY: Option<&str> = option_env!("GITHUB_REPOSITORY");
@@ -160,6 +162,12 @@ struct Asset {
     digest: Option<String>,
 }
 
+/// Vrai si ce binaire sait chercher ses mises à jour : seuls ceux construits par
+/// la pipeline connaissent leur dépôt.
+pub fn is_enabled() -> bool {
+    REPOSITORY.is_some()
+}
+
 /// Livrable en cours d'exécution : l'installateur dépose `uninstall.exe` à côté
 /// de l'exécutable, la version portable n'a rien à côté d'elle.
 pub fn current_flavor() -> Flavor {
@@ -213,6 +221,7 @@ pub fn start_background_checks<R: Runtime>(app: AppHandle<R>) {
                             // Le front n'est peut-être pas encore prêt : il relira
                             // l'état au prochain amorçage.
                             let _ = app.emit(EVENT_AVAILABLE, &info);
+                            install_silently_when_idle(&app);
                         }
                         CHECK_INTERVAL
                     }
@@ -225,6 +234,73 @@ pub fn start_background_checks<R: Runtime>(app: AppHandle<R>) {
         });
     // Sans ce thread, l'application fonctionne : elle ne se met simplement pas à jour.
     let _ = spawned;
+}
+
+/// Recherche une mise à jour tout de suite, à la demande de l'utilisateur.
+///
+/// Contrairement à la vérification périodique, un échec est remonté : l'utilisateur
+/// attend une réponse.
+pub fn check_now<R: Runtime>(app: &AppHandle<R>) -> AppResult<Option<UpdateInfo>> {
+    let repository = REPOSITORY.ok_or_else(|| {
+        validation("Ce binaire a été construit en local : il ne suit aucune release.")
+    })?;
+    let found = check(repository)?;
+    if let Some(info) = &found {
+        app.state::<UpdateState>().set_available(info.clone())?;
+        // Le front reçoit déjà la réponse ; l'événement ne sert qu'à le tenir à jour
+        // s'il n'était pas à l'origine de la demande.
+        let _ = app.emit(EVENT_AVAILABLE, info);
+    }
+    Ok(found)
+}
+
+/// Redémarre l'application : une nouvelle instance est lancée, qui attend la fin
+/// de celle-ci avant de prendre le verrou d'instance unique.
+pub fn relaunch<R: Runtime>(app: &AppHandle<R>) -> AppResult<()> {
+    spawn_successor(&std::env::current_exe()?)?;
+    app.exit(0);
+    Ok(())
+}
+
+/// Lance `exe` en lui demandant d'attendre la fin du processus courant.
+fn spawn_successor(exe: &Path) -> AppResult<()> {
+    launcher::spawn(exe, &[format!("{WAIT_ARGUMENT}{}", std::process::id())])
+}
+
+/// Délai entre deux coups d'œil au panneau, quand une installation automatique
+/// attend qu'il soit refermé.
+const IDLE_POLL: Duration = Duration::from_secs(60);
+
+/// Installe la mise à jour trouvée si l'utilisateur l'a demandé dans les réglages.
+///
+/// Elle attend que le panneau soit fermé : redémarrer l'application pendant qu'on
+/// s'en sert ferait perdre une saisie en cours. Le réglage est relu à chaque tour,
+/// pour qu'une désactivation entre-temps soit respectée. Un échec laisse la mise à
+/// jour proposée dans l'en-tête, comme en mode manuel.
+fn install_silently_when_idle<R: Runtime>(app: &AppHandle<R>) {
+    loop {
+        if !auto_update_enabled(app) {
+            return;
+        }
+        let busy = overlay::window(app)
+            .map(|window| window.is_visible().unwrap_or(true))
+            .unwrap_or(false);
+        if !busy {
+            break;
+        }
+        std::thread::sleep(IDLE_POLL);
+    }
+    // En cas de succès l'application se ferme ; sinon la mise à jour reste
+    // proposée à la main.
+    let _ = install(app);
+}
+
+/// Vrai si les mises à jour automatiques sont activées.
+fn auto_update_enabled<R: Runtime>(app: &AppHandle<R>) -> bool {
+    app.state::<Store>()
+        .settings()
+        .map(|settings| settings.auto_update)
+        .unwrap_or(false)
 }
 
 /// Interroge GitHub sur la dernière release publiée.
@@ -356,10 +432,7 @@ fn download_and_apply<R: Runtime>(app: &AppHandle<R>, info: &UpdateInfo) -> AppR
             let downloaded = sibling(&current, "download");
             download(app, info, &downloaded)?;
             swap_executable(&current, &downloaded)?;
-            launcher::spawn(
-                &current,
-                &[format!("{WAIT_ARGUMENT}{}", std::process::id())],
-            )?;
+            spawn_successor(&current)?;
         }
     }
     app.exit(0);

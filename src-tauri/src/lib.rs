@@ -17,7 +17,7 @@ mod shortcut;
 mod store;
 mod updater;
 
-use tauri::menu::MenuBuilder;
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
@@ -78,6 +78,7 @@ pub fn run() -> AppResult<()> {
             commands::export_plain_data,
             commands::import_data,
             commands::install_update,
+            commands::check_update,
             commands::open_update_page,
         ])
         .setup(|app| {
@@ -175,11 +176,21 @@ fn enable_autostart_on_first_run(handle: &tauri::AppHandle, fresh: bool) {
 
 /// Construit l'icône de la zone de notification et son menu.
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    // Simple information : l'entrée est grisée et ne déclenche rien.
+    let version = MenuItemBuilder::with_id(
+        "version",
+        format!("Bookmark Overlay {}", updater::CURRENT_VERSION),
+    )
+    .enabled(false)
+    .build(app)?;
     let menu = MenuBuilder::new(app)
+        .item(&version)
+        .separator()
         .text("open", "Ouvrir l'overlay")
         .separator()
         .text("data", "Ouvrir le dossier des données")
         .separator()
+        .text("restart", "Redémarrer")
         .text("quit", "Quitter")
         .build()?;
 
@@ -201,6 +212,10 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
             }
             "data" => {
                 let _ = launcher::reveal_file(app.state::<Store>().path());
+            }
+            "restart" => {
+                // Sans successeur lancé, mieux vaut ne pas quitter du tout.
+                let _ = updater::relaunch(app);
             }
             "quit" => app.exit(0),
             // Le menu est construit ici : tout autre identifiant serait un oubli

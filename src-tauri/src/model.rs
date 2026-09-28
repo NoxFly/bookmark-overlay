@@ -389,6 +389,8 @@ pub struct Settings {
     pub hotkey: String,
     /// Apparence de l'interface : `system`, `light` ou `dark`.
     pub theme: String,
+    /// Installe les mises à jour dès qu'elles sont trouvées, sans rien demander.
+    pub auto_update: bool,
 }
 
 /// Forme lue sur disque : accepte encore les deux profils Edge des versions
@@ -408,6 +410,8 @@ struct StoredSettings {
     hotkey: String,
     #[serde(default = "default_theme")]
     theme: String,
+    #[serde(default)]
+    auto_update: bool,
 }
 
 impl From<StoredSettings> for Settings {
@@ -438,6 +442,7 @@ impl From<StoredSettings> for Settings {
             browser_profiles,
             hotkey: stored.hotkey,
             theme: stored.theme,
+            auto_update: stored.auto_update,
         }
     }
 }
@@ -570,6 +575,7 @@ impl Default for Settings {
             browser_profiles,
             hotkey: "Ctrl+Alt+D".to_owned(),
             theme: default_theme(),
+            auto_update: false,
         }
     }
 }
@@ -598,6 +604,7 @@ impl Settings {
             browser_profiles,
             hotkey: self.hotkey.trim().to_owned(),
             theme: self.theme.trim().to_ascii_lowercase(),
+            auto_update: self.auto_update,
         };
 
         if !THEMES.contains(&sanitized.theme.as_str()) {
@@ -1041,6 +1048,19 @@ mod tests {
             settings.browser_profiles[1].hosts,
             vec!["businesscentral.dynamics.com".to_owned()]
         );
+    }
+
+    #[test]
+    fn automatic_updates_are_off_by_default_and_for_older_files() {
+        assert!(!Settings::default().auto_update);
+        let older = r#"{
+            "devopsUrlTemplate": "https://dev.azure.com/org/{devopsId}",
+            "githubUrlTemplate": "https://github.com/org/{githubId}",
+            "adminCenterUrlTemplate": "https://businesscentral.dynamics.com/{tenant}/admin",
+            "hotkey": "Ctrl+Alt+D"
+        }"#;
+        let settings: Settings = serde_json::from_str(older).expect("réglages anciens");
+        assert!(!settings.auto_update);
     }
 
     #[test]
