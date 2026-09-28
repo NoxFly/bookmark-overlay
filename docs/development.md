@@ -85,6 +85,15 @@ l'ouverture de session, quota de l'API) est retentée 2 minutes plus tard. Le d�
 binaire construit en local ne cherche donc jamais de mise à jour**, et le dépôt doit
 être public (l'API est appelée sans jeton).
 
+Réglages → Système → **Rechercher une mise à jour** fait la même vérification à la
+demande ; ses erreurs, elles, sont affichées.
+
+Avec **Installer les mises à jour automatiquement** (réglage `autoUpdate`, désactivé
+par défaut), la vérification en arrière-plan enchaîne directement sur
+l'installation. Elle attend que le panneau soit fermé, en le regardant toutes les
+minutes, et relit le réglage à chaque tour ; un échec laisse la mise à jour
+proposée dans l'en-tête.
+
 L'installation dépend du livrable en cours d'exécution :
 
 - **installé** (repéré à l'`uninstall.exe` posé à côté de l'exécutable) : le nouveau
@@ -94,6 +103,10 @@ L'installation dépend du livrable en cours d'exécution :
   qui est renommé en `.old` (Windows l'autorise pour un programme en cours) ; le
   nouveau est lancé avec `--wait-pid=<pid>` et attend la fin de l'ancien avant de
   prendre le verrou d'instance unique. Le `.old` est supprimé au démarrage suivant.
+
+**Redémarrer**, dans le menu de la zone de notification, réutilise le mécanisme de
+la version portable : une nouvelle instance est lancée avec `--wait-pid=<pid>`, puis
+l'instance courante se ferme.
 
 Garde-fous : seul un livrable hébergé sous `https://github.com/<dépôt>/releases/`
 est accepté, sa taille doit correspondre à celle annoncée, et son empreinte SHA-256

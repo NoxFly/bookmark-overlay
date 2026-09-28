@@ -107,6 +107,12 @@ en direct.
   affiche la combinaison tapée. `Entrée` valide, `Échap` annule. Il faut au moins un
   modificateur (Ctrl, Alt, Maj, Win). Un raccourci déjà pris par une autre
   application est refusé et l'ancien reste en place.
+- **Version** : la version en cours, et **Rechercher une mise à jour** pour
+  vérifier sans attendre la vérification automatique. Un build local, qui ne suit
+  aucune release, grise le bouton.
+- **Installer les mises à jour automatiquement** (désactivé par défaut) : une
+  mise à jour trouvée est installée sans rien demander, dès que le panneau est
+  fermé ; l'application redémarre d'elle-même.
 - **Démarrer avec Windows** : activé au premier lancement, vers l'emplacement de
   l'exécutable à ce moment-là. Après avoir déplacé l'exécutable, couper puis
   rallumer l'option pour corriger le chemin.
@@ -125,6 +131,11 @@ Le fichier de données est propre à chaque poste :
   côté du fichier courant.
 - Un fichier importé est refusé s'il dépasse 16 Mio, s'il ne respecte pas le schéma,
   ou s'il contient deux fois le même tenant.
+
+## Zone de notification
+
+Le menu de l'icône rappelle la version en cours, puis propose : ouvrir le panneau, ouvrir le dossier des données,
+**Redémarrer** et **Quitter**. Un clic gauche sur l'icône ouvre ou ferme le panneau.
 
 ## Mise à jour
 

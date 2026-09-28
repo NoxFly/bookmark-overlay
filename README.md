@@ -36,6 +36,8 @@ Télécharger la dernière version depuis les
   n'étant pas signés : « Informations complémentaires » puis « Exécuter quand même ».
 - L'application s'appuie sur WebView2, présent d'origine sur Windows 11 et installé
   avec Edge sur Windows 10 ; l'installateur le télécharge au besoin.
+- L'installateur ajoute l'application au menu Démarrer, donc à la recherche de
+  Windows ; la version portable n'y apparaît pas.
 - Elle s'inscrit au démarrage de Windows dès le premier lancement. Pour la version
   portable, placer l'exécutable à son emplacement définitif **avant** de le lancer.
 
@@ -64,7 +66,8 @@ se change en le tapant directement au clavier.
 
 Quand une nouvelle version est publiée, une icône apparaît dans l'en-tête du
 panneau : un clic affiche la version, sa date, son poids et un lien vers la release, et « Mettre à jour et
-redémarrer » s'occupe du reste.
+redémarrer » s'occupe du reste. Réglages → Système → **Rechercher une mise à jour**
+vérifie à la demande.
 
 ## Données
 
