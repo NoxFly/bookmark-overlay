@@ -1,8 +1,9 @@
 # Architecture
 
 Application [Tauri 2](https://tauri.app) : un backend Rust
-([src-tauri/src/](../src-tauri/src/)) et un front statique sans bundler
-([src/](../src/)).
+([src-tauri/src/](../src-tauri/src/)) et une interface en TypeScript
+([frontend/](../frontend/)), compilée par `tsc` seul en modules ES servis depuis
+`frontend/public/` — voir [development.md](development.md#interface).
 
 | Module                                               | Rôle                                                      |
 | ---------------------------------------------------- | --------------------------------------------------------- |
@@ -16,7 +17,7 @@ Application [Tauri 2](https://tauri.app) : un backend Rust
 | [overlay.rs](../src-tauri/src/overlay.rs)            | placement, affichage et masquage de la fenêtre            |
 | [shortcut.rs](../src-tauri/src/shortcut.rs)          | raccourci global                                          |
 | [updater.rs](../src-tauri/src/updater.rs)            | mise à jour automatique                                   |
-| [legacy.rs](../src-tauri/src/legacy.rs)              | reprise d'une installation antérieure au renommage        |
+| [migration.rs](../src-tauri/src/migration.rs)          | reprise des données après un changement d'identifiant    |
 
 ## Données
 
@@ -53,6 +54,16 @@ sans mot de passe et d'exports lisibles par l'application d'un collègue.
 Deux formats coexistent, reconnus à leur marqueur : le format courant, et celui des
 versions antérieures au renommage, chiffré avec l'ancienne clé.
 
+### Changement d'identifiant
+
+L'identifiant de l'application nomme son dossier de configuration. Au démarrage, si
+le dossier courant n'a pas de fichier `data`, l'application cherche dans le même
+dossier parent un autre dossier dont le nom se termine par `.bookmark-overlay` et qui
+en contient un — le plus récent s'il y en a plusieurs — et y **déplace** `data` et ses
+sauvegardes `data.backup-*` ([migration.rs](../src-tauri/src/migration.rs)). Le
+reste de l'ancien dossier (cache de la webview) est laissé en place. Le démarrage
+automatique, nommé d'après le produit et non l'identifiant, n'est pas concerné.
+
 ### Migrations à la lecture
 
 Chacune réécrit aussitôt le fichier, pour ne pas se rejouer au démarrage suivant :
@@ -64,14 +75,6 @@ Chacune réécrit aussitôt le fichier, pour ne pas se rejouer au démarrage sui
   de navigation, revendiquant les hôtes des gabarits ;
 - un ancien `data.json` en clair est chiffré ; sa copie
   `data.json.avant-chiffrement` reste lisible et est à supprimer à la main.
-
-### Reprise après renommage
-
-L'identifiant de l'application nomme son dossier de configuration. Au premier
-démarrage, si le dossier courant n'a pas de fichier de données et que celui de
-l'ancien identifiant en a un, ses fichiers de premier niveau sont recopiés ;
-l'ancien dossier est laissé intact. L'ancienne entrée de démarrage automatique est
-remplacée par la nouvelle ([legacy.rs](../src-tauri/src/legacy.rs)).
 
 ## Navigateurs
 

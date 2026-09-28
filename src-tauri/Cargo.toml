@@ -2,7 +2,8 @@
 name = "bookmark-overlay"
 version = "0.1.0"
 description = "Overlay de consultation rapide du referentiel clients"
-authors = ["Dorian Thivolle"]
+authors = ["NoxFly"]
+license = "AGPL-3.0-only"
 edition = "2021"
 rust-version = "1.82"
 
@@ -45,3 +46,6 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[dev-dependencies]
+ts-rs = { version = "12.0.1", features = ["no-serde-warnings"] }

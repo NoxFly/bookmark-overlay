@@ -1,3 +1,18 @@
+# Bookmark Overlay
+# Copyright (C) 2026 NoxFly
+#
+# FR : Ce programme est un logiciel libre ; vous pouvez le redistribuer ou le
+# modifier selon les termes de la GNU Affero General Public License, version 3,
+# telle que publiée par la Free Software Foundation. Il est distribué dans
+# l'espoir d'être utile, mais SANS AUCUNE GARANTIE. Voir le fichier LICENSE.
+#
+# EN : This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License, version 3, as
+# published by the Free Software Foundation. It is distributed in the hope that
+# it will be useful, but WITHOUT ANY WARRANTY. See the LICENSE file.
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Publie une release à chaque poussée sur `main`.
 #
 # La version est déduite des commits (Conventional Commits) depuis le dernier tag :
@@ -107,6 +122,18 @@ jobs:
         with:
           node-version: 22
 
+      - name: Installer les dépendances de l'interface
+        if: steps.version.outputs.skip == 'false'
+        working-directory: frontend
+        run: npm ci
+
+      # Le typage de l'interface est vérifié avant tout : `tauri build` la compile
+      # de toute façon, mais une erreur doit arrêter la publication au plus tôt.
+      - name: Vérifier l'interface (TypeScript)
+        if: steps.version.outputs.skip == 'false'
+        working-directory: frontend
+        run: npm run check:ui
+
       - name: Vérifier (format, lint, tests)
         if: steps.version.outputs.skip == 'false'
         working-directory: src-tauri
@@ -114,6 +141,17 @@ jobs:
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
           cargo test
+
+      # `cargo test` régénère les types TypeScript depuis les structures Rust (ts-rs).
+      # Une différence veut dire qu'un changement Rust n'a pas été répercuté.
+      - name: Vérifier que les types générés sont à jour
+        if: steps.version.outputs.skip == 'false'
+        run: |
+          if [ -n "$(git status --porcelain -- frontend/src/types/generated)" ]; then
+            git status --short -- frontend/src/types/generated
+            echo "::error::Types générés obsolètes : lancer « cargo test » dans src-tauri puis commiter frontend/src/types/generated."
+            exit 1
+          fi
 
       # Sans la clé, le binaire chiffrerait avec la clé de développement publique :
       # il ne lirait pas les données des autres binaires, et les siennes ne seraient

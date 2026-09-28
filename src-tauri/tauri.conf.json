@@ -2,9 +2,11 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Bookmark Overlay",
   "version": "0.1.0",
-  "identifier": "fr.capvision.bookmark-overlay",
+  "identifier": "io.github.noxfly.bookmark-overlay",
   "build": {
-    "frontendDist": "../src"
+    "frontendDist": "../frontend/public",
+    "beforeBuildCommand": "npm run build:ui",
+    "beforeDevCommand": "npm run build:ui"
   },
   "app": {
     "withGlobalTauri": true,

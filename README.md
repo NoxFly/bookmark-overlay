@@ -72,7 +72,7 @@ vérifie à la demande.
 ## Données
 
 Les fiches restent sur le poste, chiffrées, dans
-`%APPDATA%\fr.capvision.bookmark-overlay\data`. Réglages → Données permet d'ouvrir
+`%APPDATA%\io.github.noxfly.bookmark-overlay\data`. Réglages → Données permet d'ouvrir
 ce dossier, d'exporter la base (chiffrée pour un collègue, ou lisible en JSON) et
 d'en importer une, en fusion ou en remplacement. Une sauvegarde est écrite avant
 chaque import.

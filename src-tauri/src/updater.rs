@@ -1,3 +1,18 @@
+// Bookmark Overlay
+// Copyright (C) 2026 NoxFly
+//
+// FR : Ce programme est un logiciel libre ; vous pouvez le redistribuer ou le
+// modifier selon les termes de la GNU Affero General Public License, version 3,
+// telle que publiée par la Free Software Foundation. Il est distribué dans
+// l'espoir d'être utile, mais SANS AUCUNE GARANTIE. Voir le fichier LICENSE.
+//
+// EN : This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Affero General Public License, version 3, as
+// published by the Free Software Foundation. It is distributed in the hope that
+// it will be useful, but WITHOUT ANY WARRANTY. See the LICENSE file.
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //! Mise à jour automatique depuis les releases GitHub du dépôt.
 //!
 //! Le dépôt est celui qui a produit le binaire : la variable `GITHUB_REPOSITORY`,
@@ -68,6 +83,7 @@ const TEMP_FOLDER: &str = "bookmark-overlay-update";
 
 /// Livrable en cours d'exécution, qui détermine celui à télécharger.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub enum Flavor {
     /// Installé par `setup.exe`.
@@ -88,6 +104,7 @@ impl Flavor {
 
 /// Une mise à jour disponible, telle que présentée au front.
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     /// Version proposée, sans le `v` du tag.
@@ -113,6 +130,7 @@ pub struct UpdateInfo {
 
 /// Avancement d'un téléchargement.
 #[derive(Debug, Clone, Copy, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, rename = "UpdateProgress"))]
 #[serde(rename_all = "camelCase")]
 struct Progress {
     downloaded: u64,
@@ -604,7 +622,7 @@ fn wait_for_process(_pid: u32, _timeout: Duration) {}
 mod tests {
     use super::*;
 
-    const REPO: &str = "capvision/customers";
+    const REPO: &str = "NoxFly/bookmark-overlay";
 
     fn release(tag: &str, assets: &[&str]) -> Release {
         Release {

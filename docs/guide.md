@@ -120,7 +120,7 @@ en direct.
 ### Données
 
 Le fichier de données est propre à chaque poste :
-`%APPDATA%\fr.capvision.bookmark-overlay\data`.
+`%APPDATA%\io.github.noxfly.bookmark-overlay\data`.
 
 - **Exporter** produit un fichier chiffré `.customers`, importable tel quel par un
   collègue ; **Exporter en clair** produit un JSON lisible, pour inspecter ou

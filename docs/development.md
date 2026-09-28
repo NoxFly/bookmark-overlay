@@ -3,10 +3,37 @@
 ## Prérequis
 
 - Rust stable (voir `rust-version` dans [Cargo.toml](../src-tauri/Cargo.toml))
-- Node.js, pour la CLI Tauri (`npx @tauri-apps/cli@2`)
+- Node.js, pour TypeScript et la CLI Tauri (`npx @tauri-apps/cli@2`)
 - Windows 10 ou 11
 
+## Organisation
+
+```
+frontend/            interface
+  src/               sources TypeScript
+  public/            fichiers servis tels quels (HTML, CSS, logos), embarqués par Tauri
+    app/             JavaScript compilé depuis src/ (ignoré par git)
+src-tauri/           application Rust
+  icon-source/       source de l'icône native et son générateur
+  icons/             icônes générées pour l'exe, la zone de notification, l'installateur
+docs/                documentation
+```
+
 ## Commandes
+
+Interface, depuis `frontend/` — `npm ci` une fois (installe TypeScript, seule
+dépendance npm) :
+
+```powershell
+cd frontend
+npm run build:ui   # compile src/ vers public/app/
+npm run watch:ui   # idem, en continu pendant le développement
+npm run check:ui   # vérifie le typage sans rien écrire
+```
+
+Backend, depuis `src-tauri` — `cargo test` régénère aussi les types TypeScript de
+l'interface ; **compiler l'interface d'abord** : `cargo` embarque
+`frontend/public/`, et donc `public/app/`, qu'il ne produit pas.
 
 ```powershell
 cd src-tauri
@@ -19,16 +46,56 @@ cargo build --release                      # binaire optimisé
 
 Binaire produit : `src-tauri/target/release/bookmark-overlay.exe`.
 
-Les deux livrables (installateur NSIS et exécutable portable), depuis la racine :
+Les deux livrables (installateur NSIS et exécutable portable), depuis la racine ;
+la CLI compile l'interface d'elle-même (`beforeBuildCommand`) :
 
 ```powershell
 npx @tauri-apps/cli@2 build
 ```
 
-Le front ([src/](../src/)) est statique : aucun bundler, aucune dépendance npm à
-l'exécution. L'icône de l'application se régénère avec `node assets/gen-icon.js`
-puis `npx @tauri-apps/cli@2 icon assets/icon.png -o src-tauri/icons`. Les logos des
-navigateurs sont dans [src/icons/browsers/](../src/icons/browsers/) : un PNG de
+## Interface
+
+Les sources sont en TypeScript strict dans [frontend/src/](../frontend/src/),
+compilées par `tsc` seul, sans bundler, vers `frontend/public/app/`. Chaque fichier
+devient un module ES chargé tel quel par WebView2 : aucune dépendance n'est
+embarquée à l'exécution. Seul `frontend/public/` est embarqué dans le binaire : les
+sources `.ts` n'y figurent pas.
+
+| Dossier                                                   | Contenu                                                          |
+| --------------------------------------------------------- | ---------------------------------------------------------------- |
+| [src/types/](../frontend/src/types/)                      | structures du backend, API Tauri globale                          |
+| [src/core/](../frontend/src/core/)                        | état, IPC typé, outils DOM et texte, icônes, constantes           |
+| [src/components/](../frontend/src/components/)            | briques réutilisables : liste déroulante, toast, champ à jetons   |
+| [src/features/](../frontend/src/features/)                | liste, formulaire, réglages, profils, raccourci, mise à jour…     |
+| [src/main.ts](../frontend/src/main.ts)                    | point d'entrée                                                    |
+
+- **Les types du backend sont générés** depuis les structures Rust par
+  [ts-rs](https://github.com/Aleph-Alpha/ts-rs), dans
+  [frontend/src/types/generated/](../frontend/src/types/generated/) : à ne jamais
+  modifier à la main. Un `cargo test` les régénère ; la pipeline échoue s'ils ne sont
+  pas à jour. Une structure qui traverse l'IPC porte
+  `#[cfg_attr(test, derive(ts_rs::TS), ts(export))]` : ts-rs n'est compilé que pour
+  les tests, jamais dans le binaire livré. Les commentaires `///` deviennent la
+  documentation des types TypeScript. La configuration (dossier de sortie, `number`
+  pour les `u64`, imports en `.js`) est dans
+  [src-tauri/.cargo/config.toml](../src-tauri/.cargo/config.toml).
+- [backend.types.ts](../frontend/src/types/backend.types.ts) réexporte ces types et
+  nomme les quelques formes propres à l'interface (`Maybe`, `CustomerInput`…).
+- **Les commandes sont typées** ([ipc.service.ts](../frontend/src/core/ipc.service.ts)) :
+  le nom d'une commande fixe ses arguments et son résultat, à partir des types
+  générés. Ajouter une commande Rust, c'est l'ajouter à la table `Commands`.
+- **Aucun module n'agit à son chargement** : chacun expose une fonction `init…`,
+  appelée par `main.ts` dans un ordre explicite. Les dépendances circulaires entre
+  modules restent ainsi sans effet.
+- Les imports portent l'extension `.js` du fichier émis : c'est ce que le navigateur
+  résout.
+- HTML et CSS restent dans [frontend/public/](../frontend/public/), sans
+  préprocesseur : WebView2 gère nativement variables et imbrication CSS.
+
+L'icône de l'application se régénère avec `node src-tauri/icon-source/gen-icon.js`
+puis `npx @tauri-apps/cli@2 icon src-tauri/icon-source/icon.png -o src-tauri/icons`.
+Les logos des navigateurs sont dans
+[frontend/public/icons/browsers/](../frontend/public/icons/browsers/) : un PNG de
 128 × 128 px par navigateur, `system.svg` pour le navigateur par défaut ; un fichier
 manquant est remplacé par l'initiale du navigateur.
 
