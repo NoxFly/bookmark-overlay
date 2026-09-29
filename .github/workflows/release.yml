@@ -41,7 +41,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Mêmes vérifications que sur une PR : rien n'est publié si elles échouent.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   release:
+    needs: ci
     runs-on: windows-latest
     defaults:
       run:
@@ -107,8 +112,6 @@ jobs:
       - name: Installer Rust
         if: steps.version.outputs.skip == 'false'
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
 
       - name: Cache Cargo
         if: steps.version.outputs.skip == 'false'
@@ -126,38 +129,6 @@ jobs:
         if: steps.version.outputs.skip == 'false'
         working-directory: frontend
         run: npm ci
-
-      # Le typage de l'interface est vérifié avant tout : `tauri build` la compile
-      # de toute façon, mais une erreur doit arrêter la publication au plus tôt.
-      - name: Vérifier l'interface (TypeScript)
-        if: steps.version.outputs.skip == 'false'
-        working-directory: frontend
-        run: npm run check:ui
-
-      - name: Vérifier (format, lint, tests)
-        if: steps.version.outputs.skip == 'false'
-        working-directory: src-tauri
-        run: |
-          cargo fmt --check
-          cargo clippy --all-targets -- -D warnings
-          cargo test
-
-      # `cargo test` régénère les types TypeScript depuis les structures Rust (ts-rs).
-      # Une différence veut dire qu'un changement Rust n'a pas été répercuté.
-      - name: Vérifier que les types générés sont à jour
-        if: steps.version.outputs.skip == 'false'
-        # Comparaison sur le contenu (`git diff`), et non sur l'état des fichiers : un
-        # simple écart de fin de ligne ne doit pas faire échouer la publication. Un
-        # type généré mais jamais commité est détecté à part.
-        run: |
-          generated=frontend/src/types/generated
-          untracked=$(git ls-files --others --exclude-standard -- "$generated")
-          if ! git diff --quiet --ignore-cr-at-eol -- "$generated" || [ -n "$untracked" ]; then
-            git diff --stat --ignore-cr-at-eol -- "$generated"
-            [ -n "$untracked" ] && echo "Non commités : $untracked"
-            echo "::error::Types générés obsolètes : lancer « cargo test » dans src-tauri puis commiter $generated."
-            exit 1
-          fi
 
       # Sans la clé, le binaire chiffrerait avec la clé de développement publique :
       # il ne lirait pas les données des autres binaires, et les siennes ne seraient

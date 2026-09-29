@@ -1,0 +1,101 @@
+# Bookmark Overlay
+# Copyright (C) 2026 NoxFly
+#
+# FR : Ce programme est un logiciel libre ; vous pouvez le redistribuer ou le
+# modifier selon les termes de la GNU Affero General Public License, version 3,
+# telle que publiée par la Free Software Foundation. Il est distribué dans
+# l'espoir d'être utile, mais SANS AUCUNE GARANTIE. Voir le fichier LICENSE.
+#
+# EN : This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License, version 3, as
+# published by the Free Software Foundation. It is distributed in the hope that
+# it will be useful, but WITHOUT ANY WARRANTY. See the LICENSE file.
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Vérifications d'une pull request vers `main` : typage de l'interface, format,
+# lint, tests Rust et fraîcheur des types générés.
+#
+# Le même workflow est appelé par `release.yml` avant toute publication : une
+# release ne part jamais d'un état que la PR n'aurait pas validé.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Un nouveau commit sur une PR annule la vérification précédente, devenue
+# obsolète ; un appel depuis la release n'est jamais annulé.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Typecheck, format, lint, tests
+    # Windows : le crate dépend de `windows-sys` et de WebView2.
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Installer Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Installer Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances de l'interface
+        working-directory: frontend
+        run: npm ci
+
+      - name: Vérifier l'interface (TypeScript)
+        working-directory: frontend
+        run: npm run check:ui
+
+      - name: Format
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: Lint
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        working-directory: src-tauri
+        run: cargo test
+
+      # `cargo test` régénère les types TypeScript depuis les structures Rust (ts-rs).
+      # Une différence veut dire qu'un changement Rust n'a pas été répercuté.
+      - name: Vérifier que les types générés sont à jour
+        # Comparaison sur le contenu (`git diff`), et non sur l'état des fichiers : un
+        # simple écart de fin de ligne ne doit pas faire échouer la vérification. Un
+        # type généré mais jamais commité est détecté à part.
+        run: |
+          generated=frontend/src/types/generated
+          untracked=$(git ls-files --others --exclude-standard -- "$generated")
+          if ! git diff --quiet --ignore-cr-at-eol -- "$generated" || [ -n "$untracked" ]; then
+            git diff --stat --ignore-cr-at-eol -- "$generated"
+            [ -n "$untracked" ] && echo "Non commités : $untracked"
+            echo "::error::Types générés obsolètes : lancer « cargo test » dans src-tauri puis commiter $generated."
+            exit 1
+          fi
