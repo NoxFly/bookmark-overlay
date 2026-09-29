@@ -146,10 +146,16 @@ jobs:
       # Une différence veut dire qu'un changement Rust n'a pas été répercuté.
       - name: Vérifier que les types générés sont à jour
         if: steps.version.outputs.skip == 'false'
+        # Comparaison sur le contenu (`git diff`), et non sur l'état des fichiers : un
+        # simple écart de fin de ligne ne doit pas faire échouer la publication. Un
+        # type généré mais jamais commité est détecté à part.
         run: |
-          if [ -n "$(git status --porcelain -- frontend/src/types/generated)" ]; then
-            git status --short -- frontend/src/types/generated
-            echo "::error::Types générés obsolètes : lancer « cargo test » dans src-tauri puis commiter frontend/src/types/generated."
+          generated=frontend/src/types/generated
+          untracked=$(git ls-files --others --exclude-standard -- "$generated")
+          if ! git diff --quiet --ignore-cr-at-eol -- "$generated" || [ -n "$untracked" ]; then
+            git diff --stat --ignore-cr-at-eol -- "$generated"
+            [ -n "$untracked" ] && echo "Non commités : $untracked"
+            echo "::error::Types générés obsolètes : lancer « cargo test » dans src-tauri puis commiter $generated."
             exit 1
           fi
 

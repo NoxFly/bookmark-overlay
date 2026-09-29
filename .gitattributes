@@ -1,0 +1,4 @@
+# Fichiers générés par ts-rs (`cargo test`), toujours écrits en LF : ils doivent
+# l'être aussi dans la copie de travail, sans quoi une copie en CRLF (autocrlf
+# sous Windows) les ferait passer pour modifiés à chaque génération.
+frontend/src/types/generated/** text eol=lf
